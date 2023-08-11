@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}New item{% endblock %}
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'main/css/new_item.css' %}">
+
+<div class="new-item-main-block">
+    <div class="alert alert-success" role="alert">
+        {{res}}
+    </div>
+</div>
+{% endblock %}

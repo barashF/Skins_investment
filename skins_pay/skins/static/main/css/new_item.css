@@ -1,0 +1,18 @@
+.new-item-main-block {
+    margin-top: 40vh;
+    width: 20%;
+    margin-left: 37vw;
+    text-align: center;
+}
+.name {
+    color: aliceblue;
+    font-size: 2.7vh;
+}
+
+.input-group {
+    margin-top: 1vh;
+}
+
+.error {
+    color: brown;
+}

@@ -1,0 +1,81 @@
+.main-block {
+    width: 95%;
+    margin-left: 2.5vw;
+    margin-top: 5%;
+    height: auto;
+    overflow: auto;
+    background-color: rgb(35,42,61);
+}
+
+.settings-block {
+    width: 100%;
+    height: 5%;
+}
+
+.setting {
+    background-color: rgb(25, 28, 36);
+    height: 100%;
+    width: 46%;
+    font-size: 2.1vh;
+    color: #ffffff;
+    border-color: black;
+    border-width: 3px;
+}
+
+.price {
+    width: 15%;
+    height: 100%;
+    border-color: black;
+    border-width: 3px;
+}
+
+.names-panel {
+    color: #ffffff;
+    width: 95%;
+    float: left;
+    margin-left: 2.7%;
+    height: 5vh;
+}
+
+.name {
+    width: 19%;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    float: left;
+    font-size: 2.5vh;
+    border: 1px solid black;
+    background-color: rgb(46, 84, 97);
+    height: 100%;
+    margin-left: 0.5%;
+}
+
+.block-items {
+    margin-top: 1%;
+}
+.item-line {
+    color: #ffffff;
+    width: 95%;
+    float: left;
+    margin-top: 0.5%;
+    margin-left: 2.7%;
+    height: 7vh;
+}
+.item  {
+    width: 19%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    float: left;
+    font-size: 2.5vh;
+    border: 1px solid black;
+    background-color: rgb(28, 19, 68);
+    height: 100%;
+    margin-left: 0.5%;
+}
+
+.new-item {
+    justify-content: left;
+}

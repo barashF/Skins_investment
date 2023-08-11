@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Market{% endblock %}
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'main/css/market.css' %}">
+<div class="main-block">
+    <div class="settings-block">
+        
+    </div>
+
+    <div class="names-panel">
+        <div class="name">
+            Название
+        </div>
+        <div class="name">
+            Цена покупки
+        </div>
+        <div class="name">
+            Действующая цена
+        </div>
+        <div class="name">
+            Процент прибыли
+        </div>
+        <div class="name">
+            Прибыль
+        </div>
+    </div>
+    <div class="block-items">
+        {% for item in descriptions %}
+        <div class="item-line">
+            <div class="item">
+                {{item.name}}
+            </div>
+            <div class="item">
+                {% if item.reg == True %}
+                {{item.price}}
+                {% else %}
+                    <a href="{% url 'new_item' item.assetid item.name %}">Новый предмет</a>
+                {% endif %}
+            </div>
+            <div class="item">
+                {{item.now_price}}
+            </div>
+            <div class="item">
+                {% if item.reg == True %}
+                {{item.percent}}
+                {% else %}
+                    -
+                {% endif %}
+            </div>
+            <div class="item">
+                {% if item.reg == True %}
+                {{item.impact}}
+                {% else %}
+                    -
+                {% endif %}
+                
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    let items = [];
+    $('.block-items').change(function(){
+        const values = $('input:checked', this).get();
+
+        let names = [];
+
+        values.forEach(function(checkbox) {
+            var itemData = JSON.parse(this.getAttribute('data-item'));
+            if(names.includes(itemData.name)){
+                items.push(itemData)
+                console.log(names[-1])
+            }
+            else{
+                names.splice(0, names.length);
+                items.splice(0, items.length);
+                
+                names.push(itemData.name)
+                items.push(itemData)
+            }
+        });
+    })
+</script>
+{% endblock %}
