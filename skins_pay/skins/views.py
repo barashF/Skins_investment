@@ -30,14 +30,19 @@ class ResultSkin():
 
         self.now_price = now_price
 
-class MySKinsResult():
-    def __init__(self, name, reg, price, now_price, assetid):
+class SkinsArr():
+    def __init__(self, name, price, now_price):
         self.name = name
-        self.reg = reg
+        self.price = price
+        self.now_price = now_price
+
+class MySKinsResult():
+    def __init__(self, name, price, now_price, value):
+        self.name = name
         self.price = price
         self.percent = (now_price - price) / price * 100
         self.impact = now_price / 100 * 87 - price
-        self.assetid = assetid
+        self.value = value
         self.now_price = now_price
 
 def main_page(request):
@@ -130,6 +135,7 @@ def add_item(request, assetid, name):
 
 def my_skins(request):
     items = []
+    skins_arr = []
 
     url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
 
@@ -170,29 +176,20 @@ def my_skins(request):
                     price = float(low_price)
                     cache.set(i.name, price, 1200)
 
-                Check_inventory = True
-
                 if i.assetid not in assets_ides:
-                    Check_inventory = False
-                    
-                    check_name = False
-                    for j in desc:
-                        name = j.get('market_hash_name')
-                        if name == i.name:
-                            items.append(MySKinsResult(i.name, Check_inventory, i.price, price, i.assetid))
-                            check_name = True
-                            break
-                    
-                    if check_name == False:
-                        Skin.objects.get(assetid=i.assetid).delete()
+                    Skin.objects.get(assetid=i.assetid).delete()
                 else:
-                    items.append(MySKinsResult(i.name, Check_inventory, i.price, price, i.assetid))
+                    skins_arr.append(SkinsArr(i.name, i.price, now_price=price))
 
             except:
                 pass
     else:
         error = 'У вас нет отслеживаеымх предметов'
     
+    for i in skins_arr:
+        result = list(filter(lambda item: item.name == i.name and item.price == i.price, items))
+        if not result:
+            items.append(MySKinsResult(i.name, i.price, i.now_price, value=len(list(filter(lambda item: item.name == i.name and item.price == i.price, skins_arr)))))
     data = {
         'error' : error,
         'descriptions' : items

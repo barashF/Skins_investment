@@ -9,9 +9,6 @@
         Выберите действие
     </div>
     <div class="block-buttons">
-        {% if check_item == True %}
-            <a href="{% url 'update' assetid new_assetid %}"><button type="button" class="btn btn-warning">Заменить</button></a>
-        {% endif %}
         <a href="{% url 'delete_skin' assetid %}"><button type="button" class="btn btn-danger">Удалить</button></a>
     </div>
 </div>
