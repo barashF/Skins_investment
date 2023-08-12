@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, user_login_failed, get_user_model
 from django.contrib.auth.models import User
 from django.contrib.auth.backends import ModelBackend
+from django.core.cache import cache
 from rest_framework import generics, viewsets
 from .models import Skin, ProfileSteam
 from .sirializers import SkinSerializer
@@ -29,25 +30,36 @@ class ResultSkin():
 
         self.now_price = now_price
 
+class MySKinsResult():
+    def __init__(self, name, reg, price, now_price, assetid):
+        self.name = name
+        self.reg = reg
+        self.price = price
+        self.percent = (now_price - price) / price * 100
+        self.impact = now_price / 100 * 87 - price
+        self.assetid = assetid
+        self.now_price = now_price
+
 def main_page(request):
     return render(request, "main_page.html")
 
 def market(request):
     #url = "https://steamcommunity.com/market/priceoverview/?currency=5&country=ru&appid=730&market_hash_name=Sticker%20|%20Gen.G%20|%202020%20RMR&format=json"
-    url = "https://steamcommunity.com/inventory/76561198810795131/730/2?count=5000"
+    url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
     #response = requests.get(url)
 
     items = []
 
     values = []
 
-    with open('C:/Users/artem/Desktop/project drf/skins_pay/skins/j_skins.json', encoding='utf-8') as f:
-        data = json.load(f)
+    data = cache.get(ProfileSteam.objects.get(user=request.user).id64)
+
+    if not data:
+        data = requests.get(url).json()
+        cache.set(ProfileSteam.objects.get(user=request.user).id64, data, 1200)
     
     descriptions = data.get('descriptions')
     assets  = data.get('assets')
-
-    hash_price = {}
 
     address = '103.155.217.156'
     port = '41471'
@@ -60,10 +72,10 @@ def market(request):
     for i in assets:
         assetid = int(str(i.get('assetid')))
         classid = i.get('classid')
-        
-        if classid in hash_price.keys():
-            price = hash_price[classid]
-        else:
+
+        price = cache.get(classid)
+
+        if not price:
             name = ""
             for j in descriptions:
                 if j.get('classid') == classid:
@@ -81,7 +93,7 @@ def market(request):
                 low_price = low_price.replace(",", ".")
 
                 price = float(low_price)
-                hash_price[classid] = price
+                cache.set(classid, price, 1200)
             except:
                 continue
         
@@ -95,7 +107,7 @@ def market(request):
             items.append(ResultSkin(name, True, Skin.objects.get(assetid=assetid).price, price, ""))
         else:
             items.append(ResultSkin(name, False, 0, now_price=price, assetid=int(assetid)))
-
+    
     return render(request, 'market.html', {'descriptions':items})
 
 def new_item(request, assetid, name):
@@ -110,11 +122,132 @@ def add_item(request, assetid, name):
             
             try:
                 price = float(my_input_value.replace(",", "."))
-                Skin.objects.create(name=name, price=price, assetid=assetid)
+                Skin.objects.create(name=name, price=price, assetid=assetid, user=request.user)
 
                 return render(request, "success.html", {'res':'Предмет успешно добавлен'})
             except:
                 return render(request, "new_item.html", {'assetid':assetid, 'name':name, 'error':"Ошибка ввода цены"})
+
+def my_skins(request):
+    items = []
+
+    url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
+
+    error = ""
+    
+    data = cache.get(ProfileSteam.objects.get(user=request.user).id64)
+
+    if not data:
+        data = requests.get(url).json()
+        cache.set(ProfileSteam.objects.get(user=request.user).id64, data, 1200)
+
+    assets = data.get('assets')
+    desc = data.get('descriptions')
+
+    class_ides = []
+    assets_ides = []
+
+    for i in assets:
+        assets_ides.append(int(str(i.get('assetid'))))
+        class_ides.append(int(str(i.get('classid'))))
+
+    if Skin.objects.filter(user=request.user).exists():
+        for i in Skin.objects.filter(user=request.user):
+            try:
+                price = cache.get(i.name)
+
+                if not price:
+                    url1 = "https://steamcommunity.com/market/priceoverview/?currency=5&country=ru&appid=730&market_hash_name=" + i.name + "&format=json"
+
+            
+                    resp = requests.get(url=url1)
+                    data2 = resp.json()
+
+                    low_price = str(data2.get('lowest_price'))
+                    low_price = low_price[:-5]
+                    low_price = low_price.replace(",", ".")
+
+                    price = float(low_price)
+                    cache.set(i.name, price, 1200)
+
+                Check_inventory = True
+
+                if i.assetid not in assets_ides:
+                    Check_inventory = False
+                    
+                    check_name = False
+                    for j in desc:
+                        name = j.get('market_hash_name')
+                        if name == i.name:
+                            items.append(MySKinsResult(i.name, Check_inventory, i.price, price, i.assetid))
+                            check_name = True
+                            break
+                    
+                    if check_name == False:
+                        Skin.objects.get(assetid=i.assetid).delete()
+                else:
+                    items.append(MySKinsResult(i.name, Check_inventory, i.price, price, i.assetid))
+
+            except:
+                pass
+    else:
+        error = 'У вас нет отслеживаеымх предметов'
+    
+    data = {
+        'error' : error,
+        'descriptions' : items
+    }
+
+    return render(request, "my_skins.html", data)
+
+def page_update(request, assetid):
+    name = Skin.objects.get(assetid=assetid).name
+    url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
+    
+    data = cache.get(ProfileSteam.objects.get(user=request.user).id64)
+
+    if not data:
+        data = requests.get(url).json()
+        cache.set(ProfileSteam.objects.get(user=request.user).id64, data, 1200)
+
+    assets = data.get('assets')
+    desc = data.get('descriptions')
+
+    check_item = False
+    classid = 0
+    for i in desc:
+        name1 = i.get('market_hash_name')
+        if name1 == name:
+            check_item = True
+            classid = int(i.get('classid'))
+
+            break
+    
+    new_assetid = 0
+
+    if check_item == True:
+        for i in assets:
+            if int(i.get('classid')) == classid:
+                if not Skin.objects.filter(assetid=int(i.get('assetid'))).exists():
+                    new_assetid = int(i.get('assetid'))
+
+                    break
+        else:
+            check_item = False
+    
+    return render(request, "page_update.html", {'assetid':assetid, 'new_assetid':new_assetid, 'check_item':check_item})
+
+def update(request, assetid, new_assetid):
+    skin = Skin.objects.get(user=request.user, assetid=assetid)
+    skin.assetid = new_assetid
+    skin.save()
+
+    return redirect("my_skins")
+
+def delete_skin(request, assetid):
+    Skin.objects.get(user=request.user, assetid=assetid).delete()
+
+    return redirect("my_skins")
 
 def login(request):
     return auth('/callback')

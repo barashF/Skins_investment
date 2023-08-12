@@ -4,7 +4,6 @@
     margin-top: 5%;
     height: auto;
     overflow: auto;
-    background-color: rgb(35,42,61);
 }
 
 .settings-block {
@@ -79,3 +78,23 @@
 .new-item {
     justify-content: left;
 }
+
+.error {
+    color: rgb(172, 6, 6);
+    justify-content: center;
+    font-size: 2.5vh;
+}
+
+.change {
+    left: 0;
+    margin-left: -5%;
+}
+
+.change::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    color: #ffffff;
+    background-color: #545151;
+    top: -100%;
+    left: 0;
+  }

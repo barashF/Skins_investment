@@ -7,7 +7,6 @@
     <div class="settings-block">
         
     </div>
-
     <div class="names-panel">
         <div class="name">
             Название
@@ -29,32 +28,23 @@
         {% for item in descriptions %}
         <div class="item-line">
             <div class="item">
+                {% if item.reg == False %}
+                    <a href="{% url 'page_update' item.assetid %}"><button title="Данного предмета больше нет в вашем инвентаре, если вы утратили его, не подразумевав конкретно данную инвестиционную позицию, то нажав вы перенесёте данные на другой соответственный предмет"
+                    type="button" class="btn btn-danger change">!!!</button></a>
+                {% endif %}
                 {{item.name}}
             </div>
             <div class="item">
-                {% if item.reg == True %}
                 {{item.price}}
-                {% else %}
-                    <a href="{% url 'new_item' item.assetid item.name %}">Новый предмет</a>
-                {% endif %}
             </div>
             <div class="item">
                 {{item.now_price}}
             </div>
             <div class="item">
-                {% if item.reg == True %}
-                {{item.percent}}
-                {% else %}
-                    -
-                {% endif %}
+                {{item.percent}}%
             </div>
             <div class="item">
-                {% if item.reg == True %}
                 {{item.impact}}
-                {% else %}
-                    -
-                {% endif %}
-                
             </div>
         </div>
         {% endfor %}

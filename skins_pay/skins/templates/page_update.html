@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}New item{% endblock %}
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'main/css/new_item.css' %}">
+
+<div class="new-item-main-block">
+    <div class="alert alert-success" role="alert">
+        Выберите действие
+    </div>
+    <div class="block-buttons">
+        {% if check_item == True %}
+            <a href="{% url 'update' assetid new_assetid %}"><button type="button" class="btn btn-warning">Заменить</button></a>
+        {% endif %}
+        <a href="{% url 'delete_skin' assetid %}"><button type="button" class="btn btn-danger">Удалить</button></a>
+    </div>
+</div>
+{% endblock %}
