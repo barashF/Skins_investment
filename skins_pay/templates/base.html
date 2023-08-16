@@ -21,7 +21,7 @@
 <body>
     <div class="head">
         <div class="head-login">
-            {% if user.is_authenticated %}
+            {% if request.user.is_authenticated %}
                 {{user.username}}
             {% else %}
                 <a href="{% url 'mlogin' %}"><button type="button" class="btn btn-warning">Войти</button></a>

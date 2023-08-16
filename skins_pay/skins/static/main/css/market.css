@@ -97,4 +97,16 @@
     background-color: #545151;
     top: -100%;
     left: 0;
-  }
+}
+
+.cost {
+    margin-left: 10%;
+    float: left;
+}
+.now-cost {
+    font-size: 3vh;
+    color: #ffffff;
+}
+.now-percent {
+    font-size: 2.3vh;
+}

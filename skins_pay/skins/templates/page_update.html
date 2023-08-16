@@ -6,10 +6,15 @@
 
 <div class="new-item-main-block">
     <div class="alert alert-success" role="alert">
-        Выберите действие
+        Выберите количество актуальное количество предметов для:
+        {{name}}, купленных за {{price}}
     </div>
-    <div class="block-buttons">
-        <a href="{% url 'delete_skin' assetid %}"><button type="button" class="btn btn-danger">Удалить</button></a>
-    </div>
+    <form method="get" action="{% url 'update' name price %}">
+        <div class="col">
+            <input type="text" class="form-control" name="value" placeholder="До {{counter}}" aria-label="First name">
+        </div>
+        <p><span class="error" role="alert">{{error}}</span></p>
+        <button class="btn btn-warning">Добавить</button>
+    </form>
 </div>
 {% endblock %}

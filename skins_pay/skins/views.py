@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate, login, user_login_failed, get_user
 from django.contrib.auth.models import User
 from django.contrib.auth.backends import ModelBackend
 from django.core.cache import cache
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, authentication
 from .models import Skin, ProfileSteam
 from .sirializers import SkinSerializer
 from rest_framework.views import APIView
@@ -15,6 +15,7 @@ from stem.control import Controller
 import time
 import json
 from steamauth import auth, get_uid
+from rest_framework.decorators import action
 
 
 class ResultSkin():
@@ -24,8 +25,8 @@ class ResultSkin():
 
         if reg:
             self.price = price
-            self.percent = (now_price - price) / price * 100
-            self.impact = now_price / 100 * 87 - price
+            self.percent = round((now_price - price) / price * 100, 2)
+            self.impact = round(now_price / 100 * 87 - price, 2)
         self.assetid = assetid
 
         self.now_price = now_price
@@ -40,8 +41,8 @@ class MySKinsResult():
     def __init__(self, name, price, now_price, value):
         self.name = name
         self.price = price
-        self.percent = (now_price - price) / price * 100
-        self.impact = now_price / 100 * 87 - price
+        self.percent = round((now_price - price) / price * 100, 2)
+        self.impact = round((now_price / 100 * 87 - price) * value, 2)
         self.value = value
         self.now_price = now_price
 
@@ -129,7 +130,7 @@ def add_item(request, assetid, name):
                 price = float(my_input_value.replace(",", "."))
                 Skin.objects.create(name=name, price=price, assetid=assetid, user=request.user)
 
-                return render(request, "success.html", {'res':'Предмет успешно добавлен'})
+                return redirect("my_skins")
             except:
                 return render(request, "new_item.html", {'assetid':assetid, 'name':name, 'error':"Ошибка ввода цены"})
 
@@ -157,6 +158,11 @@ def my_skins(request):
         assets_ides.append(int(str(i.get('assetid'))))
         class_ides.append(int(str(i.get('classid'))))
 
+    start_cost = 0
+    cost = 0
+
+    percent_def = 0
+
     if Skin.objects.filter(user=request.user).exists():
         for i in Skin.objects.filter(user=request.user):
             try:
@@ -165,7 +171,6 @@ def my_skins(request):
                 if not price:
                     url1 = "https://steamcommunity.com/market/priceoverview/?currency=5&country=ru&appid=730&market_hash_name=" + i.name + "&format=json"
 
-            
                     resp = requests.get(url=url1)
                     data2 = resp.json()
 
@@ -181,26 +186,34 @@ def my_skins(request):
                 else:
                     skins_arr.append(SkinsArr(i.name, i.price, now_price=price))
 
+                start_cost += i.price
+                cost += (price / 100 * 87 ) 
+
             except:
                 pass
+        percent_def = round(((cost - start_cost)/start_cost)*100, 2)
     else:
         error = 'У вас нет отслеживаеымх предметов'
     
     for i in skins_arr:
         result = list(filter(lambda item: item.name == i.name and item.price == i.price, items))
-        if not result:
+        if len(result) == 0:
             items.append(MySKinsResult(i.name, i.price, i.now_price, value=len(list(filter(lambda item: item.name == i.name and item.price == i.price, skins_arr)))))
+    
+    impact = round((cost - start_cost), 2)
     data = {
         'error' : error,
-        'descriptions' : items
+        'descriptions' : items,
+        'cost' : round(cost, 2),
+        'impact' : impact,
+        'percent_def' : percent_def
     }
 
     return render(request, "my_skins.html", data)
 
-def page_update(request, assetid):
-    name = Skin.objects.get(assetid=assetid).name
+def page_update(request, name, price):
     url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
-    
+
     data = cache.get(ProfileSteam.objects.get(user=request.user).id64)
 
     if not data:
@@ -210,34 +223,63 @@ def page_update(request, assetid):
     assets = data.get('assets')
     desc = data.get('descriptions')
 
-    check_item = False
     classid = 0
     for i in desc:
-        name1 = i.get('market_hash_name')
-        if name1 == name:
-            check_item = True
+        if str(i.get('market_hash_name')) == name:
             classid = int(i.get('classid'))
-
             break
-    
-    new_assetid = 0
 
-    if check_item == True:
-        for i in assets:
-            if int(i.get('classid')) == classid:
-                if not Skin.objects.filter(assetid=int(i.get('assetid'))).exists():
-                    new_assetid = int(i.get('assetid'))
+    counter = 0
+    for i in assets:
+        if int(i.get('classid')) == classid:
+            if len(Skin.objects.filter(assetid=int(i.get('assetid')))) == 0:
+                counter += 1
 
+    return render(request, "page_update.html", {'name':name, 'price':price, 'counter':counter, 'error':''})
+
+def update(request, name, price):
+    if request.method == 'GET':
+        price = float(price)
+
+        skins = Skin.objects.filter(user=request.user, name=name, price=price)
+        value_str = str(request.GET.get('value'))
+        value = int(value_str)
+        url = "https://steamcommunity.com/inventory/" + str(ProfileSteam.objects.get(user=request.user).id64) + "/730/2?count=5000"
+
+        data = cache.get(ProfileSteam.objects.get(user=request.user).id64)
+
+        if not data:
+            data = requests.get(url).json()
+            cache.set(ProfileSteam.objects.get(user=request.user).id64, data, 1200)
+
+        assets = data.get('assets')
+        desc = data.get('descriptions')
+
+        try:
+            classid = 0
+            for i in desc:
+                if str(i.get('market_hash_name')) == name:
+                    classid = int(i.get('classid'))
                     break
-        else:
-            check_item = False
-    
-    return render(request, "page_update.html", {'assetid':assetid, 'new_assetid':new_assetid, 'check_item':check_item})
+        
+            asset_ides = []
 
-def update(request, assetid, new_assetid):
-    skin = Skin.objects.get(user=request.user, assetid=assetid)
-    skin.assetid = new_assetid
-    skin.save()
+            counter = 0
+            for i in assets:
+                if int(i.get('classid')) == classid:
+                    try:
+                        skin = Skin.objects.get(assetid=int(i.get('assetid')))
+                    except Skin.DoesNotExist:
+                        counter += 1
+                        asset_ides.append(int(i.get('assetid')))
+        except:
+            return render(request, "page_update.html", {'name':name, 'price':price, 'counter':counter, 'error':'Неверный формат ввода'})
+
+        if value > counter:
+            return render(request, "page_update.html", {'name':name, 'price':price, 'counter':counter, 'error':'Введённое число больше, чем количество незарегистрированных предметов в инвентаре'})
+    
+        for i in range(value):
+            Skin.objects.create(user=request.user, name=name, price=price, assetid=asset_ides[i])
 
     return redirect("my_skins")
 
@@ -246,7 +288,7 @@ def delete_skin(request, assetid):
 
     return redirect("my_skins")
 
-def login(request):
+def mlogin(request):
     return auth('/callback')
 
 def login_callback(request):
@@ -259,7 +301,7 @@ def login_callback(request):
             user = authenticate(username=str(steam_uid), password="123456789GUSTAV")
 
             if user is not None:
-                login(user)
+                login(request, user)
             else:
                 print("ошибка")
         else:
@@ -270,68 +312,22 @@ def login_callback(request):
             ProfileSteam.objects.create(user=user, id64=steam_uid)
 
             user = authenticate(username=str(steam_uid), password="123456789GUSTAV")
+
             if user is not None:
-                login(user)
+                login(request, user)
             else:
                 print("ошибка")
 
         return render(request, "success.html", {'res':steam_uid})
 
-class SkinViewSet(viewsets.ModelViewSet):
+class SkinAPILIst(generics.ListCreateAPIView):
     queryset = Skin.objects.all()
     serializer_class = SkinSerializer
 
-# class SkinAPIList(generics.ListCreateAPIView):
-#     queryset = Skin.objects.all()
-#     serializer_class = SkinSerializer
+class SkinAPIUpdate(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Skin.objects.all()
+    serializer_class = SkinSerializer
 
-# class SkinAPIUpdate(generics.UpdateAPIView):
-#     queryset = Skin.objects.all()
-#     serializer_class = SkinSerializer
-
-# class SkinAPIDetailView(generics.RetrieveUpdateDestroyAPIView):
-#     queryset = Skin.objects.all()
-#     serializer_class = SkinSerializer
-    
-# class SkinAPIView(APIView):
-
-#     def get(self, request):
-#         lst = Skin.objects.all()
-#         return Response({'post': SkinSerializer(lst, many=True).data})
-
-#     def post(self, request):
-#         serializer = SkinSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-
-#         return Response({'post': serializer.data})
-
-#     def put(self, request, *args, **kwargs):
-#         pk = kwargs.get("pk", None)
-
-#         if not pk:
-#             return Response({'error':'not found'})
-        
-#         try:
-#             instance = Skin.objects.get(pk=pk)
-#         except:
-#             return Response({'error':'not found'})
-        
-#         serializer = SkinSerializer(data=request.data, instance=instance)
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-
-#         return Response({'post':serializer.data})
-    
-#     def delete(self, request, *args, **kwargs):
-#         pk = kwargs.get("pk", None)
-
-#         if not pk:
-#             return Response({'error':'not found'})
-        
-#         Skin.objects.get(pk=pk).delete()
-
-
-# class SkinAPIView(generics.ListAPIView):
-#     queryset = Skin.objects.all()
-#     serializer_class = SkinSerializer
+class SkinAPIDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Skin.objects.all()
+    serializer_class = SkinSerializer

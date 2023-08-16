@@ -5,7 +5,14 @@
 <link rel="stylesheet" href="{% static 'main/css/market.css' %}">
 <div class="main-block">
     <div class="settings-block">
-        
+        <div class="cost">
+            <h2 class="now-cost">{{cost}} ₽</h2>
+            {% if percent_def > 0 %}
+                <p class="now-percent" style="color: rgb(24, 163, 9);">+{{impact}}₽ (+{{percent_def}}%)</p>
+            {% else %}
+                <p class="now-percent" style="color: rgb(171, 0, 0);">{{impact}}₽ ({{percent_def}}%)</p>
+            {% endif %}
+        </div>
     </div>
     <div class="names-panel">
         <div class="name">
@@ -31,16 +38,16 @@
                 {{item.name}}
             </div>
             <div class="item">
-                {{item.price}}, ({{item.value}})
+                {{item.price}}₽, <a href="{% url 'page_update' item.name item.price %}"> ({{item.value}})</a>
             </div>
             <div class="item">
-                {{item.now_price}}
+                {{item.now_price}}₽
             </div>
             <div class="item">
                 {{item.percent}}%
             </div>
             <div class="item">
-                {{item.impact}}
+                {{item.impact}}₽
             </div>
         </div>
         {% endfor %}

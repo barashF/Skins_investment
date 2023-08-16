@@ -15,22 +15,22 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from skins.views import *
 from django.conf import settings
 from django.conf.urls.static import static
 from skins.views import *
 from rest_framework import routers
 
-router = routers.SimpleRouter()
-router.register(r'skin', SkinViewSet)
 
 urlpatterns = [
     path('', main_page, name="main_page"),
     path('admin/', admin.site.urls),
-    path('api/v1/', include(router.urls)),
-    # path('api/v1/skins', SkinViewSet.as_view({'get':'list'})),
-    # path('api/v1/skins/<int:pk>/', SkinViewSet.as_view({'put':'update'})),
+    path('api/v1/skins', SkinAPILIst.as_view()),
+    path('api/v1/skins/<int:pk>/', SkinAPIUpdate.as_view()),
+    path('api/v1/deleteskins/<int:pk>/', SkinAPIDestroy.as_view()),
+    path('api/v1/auth/', include("djoser.urls")),
+    re_path(r'^auth/', include('djoser.urls.authtoken')),
     path('market/', include("skins.urls"))
 ]
 
