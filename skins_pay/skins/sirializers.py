@@ -7,14 +7,10 @@ class SkinSerializer(serializers.ModelSerializer):
         model = Skin
         fields = "__all__"
 
-    def create(self, validated_data):
-        return Skin.objects.create(**validated_data)
+    name = serializers.CharField()
+    price = serializers.FloatField()
+    assetid = serializers.IntegerField()
+    user = serializers.IntegerField()
 
-    def update(self, instance, validated_data):
-        instance.name = validated_data.get("name", instance.name)
-        instance.type_gun = validated_data.get("type_gun", instance.type_gun)
-        instance.float_gun = validated_data.get("float_gun", instance.float_gun)
-        instance.save()
-
-        return instance
+        
 

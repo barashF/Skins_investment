@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.backends import ModelBackend
 from django.core.cache import cache
 from rest_framework import generics, viewsets, authentication
+from rest_framework.permissions import *
 from .models import Skin, ProfileSteam
 from .sirializers import SkinSerializer
 from rest_framework.views import APIView
@@ -15,7 +16,7 @@ from stem.control import Controller
 import time
 import json
 from steamauth import auth, get_uid
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 
 
 class ResultSkin():
@@ -298,7 +299,7 @@ def login_callback(request):
         return render(request, "success.html", {'res':'ошибка'})
     else:
         if ProfileSteam.objects.filter(id64=steam_uid).exists():
-            user = authenticate(username=str(steam_uid), password="123456789GUSTAV")
+            user = authenticate(username=ProfileSteam.objects.get(id64=steam_uid).user.username, password="123456789GUSTAV")
 
             if user is not None:
                 login(request, user)
@@ -320,14 +321,65 @@ def login_callback(request):
 
         return render(request, "success.html", {'res':steam_uid})
 
-class SkinAPILIst(generics.ListCreateAPIView):
-    queryset = Skin.objects.all()
-    serializer_class = SkinSerializer
+def api_login(request, id64):
+    steam_uid = id64
+    if ProfileSteam.objects.filter(id64=steam_uid).exists():
+        user = authenticate(username=ProfileSteam.objects.get(id64=steam_uid).user.username, password="123456789GUSTAV")
 
-class SkinAPIUpdate(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Skin.objects.all()
-    serializer_class = SkinSerializer
+        if user is not None:
+            login(request, user)
+        else:
+            print("ошибка")
+    else:
+        user = User.objects.create(username=str(steam_uid))
+        user.set_password("123456789GUSTAV")
+        user.save()
 
-class SkinAPIDestroy(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Skin.objects.all()
-    serializer_class = SkinSerializer
+        ProfileSteam.objects.create(user=user, id64=steam_uid)
+
+        user = authenticate(username=str(steam_uid), password="123456789GUSTAV")
+
+        if user is not None:
+            login(request, user)
+        else:
+            print("ошибка")
+
+class SkinsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        id64 = int(request.data.get("steamid"))
+        skins = Skin.objects.filter(user=ProfileSteam.objects.get(id64=id64).user)
+        
+        return Response(json.dumps(list(skins.values())))
+
+    def post(self, request):
+        serializer = SkinSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        new_skin = Skin.objects.create(name=request.data.get("name"), price=request.data.get("price"), assetid=request.data.get("assetid"), user=ProfileSteam.objects.get(id64=request.data.get("user")).user)
+
+        return Response({'post':serializer.data})
+    
+    def put(self, request, *args, **kwargs):
+        pk = kwargs.get("pk", None)
+
+        try:
+            instance = Skin.objects.get(pk=pk)
+        except:
+            return Response({"error": "Object does not exists"})
+        
+        serializer = SkinSerializer(data=request.data, instance=instance)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({"post": serializer.data})
+    
+    def delete(self, request, *args, **kwargs):
+        assetid = request.data.get("assetid", None)
+        if not assetid:
+            return Response({"error": "Method DELETE not allowed"})
+ 
+        Skin.objects.get(assetid=assetid).delete()
+ 
+        return Response({"post": "delete post " + str(assetid)})

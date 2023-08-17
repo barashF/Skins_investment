@@ -26,9 +26,8 @@ from rest_framework import routers
 urlpatterns = [
     path('', main_page, name="main_page"),
     path('admin/', admin.site.urls),
-    path('api/v1/skins', SkinAPILIst.as_view()),
-    path('api/v1/skins/<int:pk>/', SkinAPIUpdate.as_view()),
-    path('api/v1/deleteskins/<int:pk>/', SkinAPIDestroy.as_view()),
+    path('api/v1/skins/', SkinsView.as_view()),
+    path('api/v1/skins/<int:id64>/', SkinsView.as_view()),
     path('api/v1/auth/', include("djoser.urls")),
     re_path(r'^auth/', include('djoser.urls.authtoken')),
     path('market/', include("skins.urls"))
