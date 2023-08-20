@@ -28,9 +28,22 @@ class ResultSkin():
             self.price = price
             self.percent = round((now_price - price) / price * 100, 2)
             self.impact = round(now_price / 100 * 87 - price, 2)
-        self.assetid = assetid
+        else:
+            self.price = "-"
+            self.percent = "-"
+            self.impact = "-"
 
+        self.assetid = assetid
         self.now_price = now_price
+
+        def to_dict(self):
+            info = {
+                "name":self.name,
+                "price":self.price,
+                "now_price":self.now_price,
+                "percent":self.percent,
+                "impact":self.impact
+            }
 
 class SkinsArr():
     def __init__(self, name, price, now_price):
@@ -54,7 +67,7 @@ class MySKinsResult():
             "percent":self.percent,
             "impact":self.impact,
             "value":self.value,
-            "now_price":self.price
+            "now_price":self.now_price
         }
 
         return info
@@ -356,6 +369,61 @@ def api_login(request, id64):
         else:
             print("ошибка")
 
+class Api_inventory(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        id64 = int(request.data.get("steamid"))
+        
+        url = "https://steamcommunity.com/inventory/" + str(id64) + "/730/2?count=5000"
+
+        data = cache.get(id64)
+
+        items = []
+
+        if not data:
+            data = requests.get(url).json()
+            cache.set(id64, data, 1200)
+
+        assets = data.get('assets')
+        desc = data.get('descriptions')
+
+        for i in assets:
+            assetid = int(i.get("assetid"))
+            
+            name = ""
+            for j in desc:
+                if int(j.get("classid")) == int(i.get("classid")):
+                    name = j.get("market_hash_name")
+                    price = cache.get(j.get("market_hash_name"))
+
+                    if not price:
+                        url1 = "https://steamcommunity.com/market/priceoverview/?currency=5&country=ru&appid=730&market_hash_name=" + j.get("market_hash_name") + "&format=json"
+
+                        resp = requests.get(url=url1)
+                        data2 = resp.json()
+
+                        low_price = str(data2.get('lowest_price'))
+                        low_price = low_price[:-5]
+                        low_price = low_price.replace(",", ".")
+
+                        price = float(low_price)
+                        cache.set(j.get("market_hash_name"), price, 1200)
+                    
+                    break
+
+            if Skin.objects.filter(user=ProfileSteam.objects.get(id64=id64).user, assetid=assetid).exists():
+                items.append(MySKinsResult(name=name, reg=True, price=Skin.objects.get(assetid=assetid).price, now_price=price, assetid=assetid))
+            else:
+                items.append(MySKinsResult(name=name, reg=False, now_price=price, assetid=assetid))
+        
+        
+        data = {
+            items:json.dumps(list(i.to_dict() for i in items))
+        }
+        
+        return Response(data)
+
 class Api_my_skins(APIView):
     permission_classes = [AllowAny]
 
@@ -373,7 +441,7 @@ class Api_my_skins(APIView):
         assets = data.get('assets')
         desc = data.get('descriptions')
         
-        items = list()
+        items = []
         list_assets = []
         list_classides = []
 

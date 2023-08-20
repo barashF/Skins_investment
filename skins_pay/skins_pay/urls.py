@@ -26,6 +26,7 @@ from rest_framework import routers
 urlpatterns = [
     path('', main_page, name="main_page"),
     path('admin/', admin.site.urls),
+    path('api/v1/my_inventory/', Api_inventory.as_view()),
     path('api/v1/my_skins/', Api_my_skins.as_view()),
     path('api/v1/skins/', SkinsView.as_view()),
     path('api/v1/skins/<int:id64>/', SkinsView.as_view()),
