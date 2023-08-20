@@ -46,6 +46,18 @@ class MySKinsResult():
         self.impact = round((now_price / 100 * 87 - price) * value, 2)
         self.value = value
         self.now_price = now_price
+    
+    def to_dict(self):
+        info = {
+            "name":self.name,
+            "price":self.price,
+            "percent":self.percent,
+            "impact":self.impact,
+            "value":self.value,
+            "now_price":self.price
+        }
+
+        return info
 
 def main_page(request):
     return render(request, "main_page.html")
@@ -343,6 +355,89 @@ def api_login(request, id64):
             login(request, user)
         else:
             print("ошибка")
+
+class Api_my_skins(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        id64 = int(request.data.get("steamid"))
+        
+        url = "https://steamcommunity.com/inventory/" + str(id64) + "/730/2?count=5000"
+
+        data = cache.get(id64)
+
+        if not data:
+            data = requests.get(url).json()
+            cache.set(id64, data, 1200)
+
+        assets = data.get('assets')
+        desc = data.get('descriptions')
+        
+        items = list()
+        list_assets = []
+        list_classides = []
+
+        for i in assets:
+            list_assets.append(int(i.get("assetid")))
+            list_classides.append(int(i.get("classid")))
+        
+        skins_arr = []
+        start_cost = 0
+        cost = 0
+        percent_def = 0
+
+        error = ''
+
+        if Skin.objects.filter(user=ProfileSteam.objects.get(id64=id64).user).exists():
+            for i in Skin.objects.filter(user=ProfileSteam.objects.get(id64=id64).user):
+                try:
+                    price = cache.get(i.name)
+
+                    if not price:
+                        url1 = "https://steamcommunity.com/market/priceoverview/?currency=5&country=ru&appid=730&market_hash_name=" + i.name + "&format=json"
+
+                        resp = requests.get(url=url1)
+                        data2 = resp.json()
+
+                        low_price = str(data2.get('lowest_price'))
+                        low_price = low_price[:-5]
+                        low_price = low_price.replace(",", ".")
+
+                        price = float(low_price)
+                        cache.set(i.name, price, 1200)
+
+                    if i.assetid not in list_assets:
+                        Skin.objects.get(assetid=i.assetid).delete()
+                    else:
+                        skins_arr.append(SkinsArr(i.name, i.price, now_price=price))
+
+                    start_cost += i.price
+                    cost += (price / 100 * 87 ) 
+
+                except:
+                    pass
+            percent_def = round(((cost - start_cost)/start_cost)*100, 2)
+        else:
+            error = 'У вас нет зарегистрированных инвестиций'
+
+        for i in skins_arr:
+            result = list(filter(lambda item: item.name == i.name and item.price == i.price, items))
+            if len(result) == 0:
+                my_skin_result = MySKinsResult(i.name, i.price, i.now_price, value=len(list(filter(lambda item: item.name == i.name and item.price == i.price, skins_arr))))
+                
+                items.append(my_skin_result)
+    
+        impact = round((cost - start_cost), 2)
+        
+        data = {
+            'error' : error,
+            'items' : json.dumps(list(i.to_dict() for i in items)),
+            'cost' : round(cost, 2),
+            'impact' : impact,
+            'percent_def' : percent_def
+        }
+
+        return Response(data)
 
 class SkinsView(APIView):
     permission_classes = [AllowAny]
