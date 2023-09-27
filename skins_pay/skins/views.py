@@ -18,6 +18,7 @@ import json
 from steamauth import auth, get_uid
 from rest_framework.decorators import action, api_view
 
+#test git branch
 
 class ResultSkin():
     def __init__(self, name, reg, price, now_price, assetid):
